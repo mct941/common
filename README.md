@@ -1,3 +1,1 @@
-# test
-
-this is new text in rstudio
+This is just a collection of generic R scripts that can be used across projects.
