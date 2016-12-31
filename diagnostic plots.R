@@ -18,7 +18,7 @@ runpath <- file.path(path.package("mrgsolve"),"nonmem","1005")
 runno <- 1005
 
 
-read.nonmem <- function(file, n=-1) {
+read_nonmem <- function(file, n=-1) {
   ## auxiliary function to split text lines at blanks
   my.split <- function(line, numeric=FALSE) {
     pieces <- unlist(strsplit(line, split=" +"))[-1]
@@ -60,7 +60,7 @@ read.nonmem <- function(file, n=-1) {
   return(df)
 }
 
-file.tab <- read.nonmem(file.path(runpath,paste(runno,".tab",sep=""))) %>% tbl_df() %>% filter(EVID==0)
+file.tab <- read_nonmem(file.path(runpath,paste(runno,".tab",sep=""))) %>% tbl_df() %>% filter(EVID==0)
 
 ## Generate diagnostic plots
 gof_plot <- function(xvar,yvar,colorvar=NULL,shapevar=NULL,sizevar=NULL,caption=NULL,...) {
