@@ -17,6 +17,49 @@ projpath <- getwd()
 runpath <- file.path(path.package("mrgsolve"),"nonmem","1005")
 runno <- 1005
 
+
+read.nonmem <- function(file, n=-1) {
+  ## auxiliary function to split text lines at blanks
+  my.split <- function(line, numeric=FALSE) {
+    pieces <- unlist(strsplit(line, split=" +"))[-1]
+    if( numeric )
+      return(as.numeric(pieces))
+    else
+      return(pieces)
+  }
+  
+  cat(sprintf("Reading NONMEM data from '%s'\n", file))
+  lines <- readLines(file, n) # read file as text
+  cat(sprintf("- %d lines\n", length(lines)))
+  
+  idx <- substring(lines,1,1)!="T"
+  cat(sprintf("- %d tables\n", sum(!idx)))
+  lines <- lines[idx] # strip lines starting with T (TABLE NO ...)
+  
+  ## do we have header lines??
+  if( length(grep("^ +[A-Za-z]", lines[1]))>0 ) { # yes!
+    data <- sapply(lines[lines!= lines[1]], my.split, numeric=TRUE)
+    header <-  my.split(lines[1])
+    cat(sprintf("- file has column names (%s)\n", paste(header,collapse=", ")))
+  } else {                                        # no
+    data <- sapply(lines, my.split, numeric=TRUE)
+    header <- sprintf("Column%02d", 1:nrow(data)) # make fake column names
+    cat("- file has NO header names - creating names Column01, Column02, ...\n")
+  }
+  cat(sprintf("- %d columns\n", nrow(data)))
+  
+  ## transpose data and make a data.frame
+  df <- data.frame(data[1,])
+  for( i in 2:nrow(data))
+    df <- cbind(df, data[i,])
+  
+  ## set column and row names
+  rownames(df) <- NULL
+  colnames(df) <- header
+  cat("ok.\n")
+  return(df)
+}
+
 file.tab <- read.nonmem(file.path(runpath,paste(runno,".tab",sep=""))) %>% tbl_df() %>% filter(EVID==0)
 
 ## Generate diagnostic plots
