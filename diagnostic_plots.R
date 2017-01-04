@@ -1,23 +1,3 @@
-##
-# Author: Max Tsai
-# Date: 
-# Purpose:  Generate goodness-of-fit plots for model evaluation and data exploration
-
-
-## Select libraries
-library(ggplot)
-library(gridExtra)
-library(dplyr)
-
-## Clear environment
-rm(list=ls())
-
-## Set model path and filename
-projpath <- getwd()
-runpath <- file.path(path.package("mrgsolve"),"nonmem","1005")
-runno <- 1005
-
-
 read_nonmem <- function(file, n=-1) {
   ## auxiliary function to split text lines at blanks
   my.split <- function(line, numeric=FALSE) {
@@ -60,35 +40,69 @@ read_nonmem <- function(file, n=-1) {
   return(df)
 }
 
-file.tab <- read_nonmem(file.path(runpath,paste(runno,".tab",sep=""))) %>% tbl_df() %>% filter(EVID==0)
-
 ## Generate diagnostic plots
-gof_plot <- function(xvar,yvar,colorvar=NULL,shapevar=NULL,sizevar=NULL,caption=NULL,...) {
-  if(xvar=="DV") plot.range <- file.tab %>% select_(xvar,yvar) %>% summarise_each(c("min","max")) %>% range() 
-  if(xvar!="DV") plot.range <- file.tab %>% select_(yvar) %>% summarise(min=-max(abs(.)),max=(max(abs(.)))) %>% unlist()
-  p <- ggplot(file.tab) + 
-         geom_smooth(aes_string(x=xvar,y=yvar),method="lm") + 
-         theme(aspect.ratio=1)
-         
+gof_plot <- function(data,xvar,yvar,colorvar=NULL,shapevar=NULL,sizevar=NULL,smooth=NULL,caption=F,...) {
+  dta <- data
+  if(xvar=="DV") plot.range <- dta %>% select_(xvar,yvar) %>% summarise_each(c("min","max")) %>% range() 
+  if(xvar!="DV") plot.range <- dta %>% select_(yvar) %>% summarise(min=-max(abs(.)),max=(max(abs(.)))) %>% unlist()
+  
+  p <- ggplot(dta) + geom_point(aes_string(x=xvar,y=yvar)) + theme(aspect.ratio=1)
+  
+  # Add points
+  if(!is.null(colorvar)) p <- p + geom_point(aes_string(x=xvar,y=yvar,color=colorvar)) 
+  if(!is.null(shapevar)) p <- p + geom_point(aes_string(x=xvar,y=yvar,shape=shapevar)) 
+  if(!is.null(sizevar)) p <- p + geom_point(aes_string(x=xvar,y=yvar,size=sizevar)) 
+  
+  # Add unity lines
   if(xvar=="DV") p <- p + geom_abline(slope=1,intercept=0,linetype="dashed") + coord_cartesian(xlim=plot.range, ylim=plot.range)
   if(xvar!="DV") p <- p + geom_hline(yintercept=0,linetype="dashed") + coord_cartesian(ylim=plot.range)
-  if(!is.null(colorvar)) p <- p + geom_point(aes_string(x=xvar,y=yvar,color=colorvar)) 
-  else p <- p + geom_point(aes_string(x=xvar,y=yvar)) 
-  if(!is.null(shapevar)) p <- p + geom_point(aes_string(x=xvar,y=yvar,shape=shapevar)) 
-  else p <- p + geom_point(aes_string(x=xvar,y=yvar)) 
-  if(!is.null(sizevar)) p <- p + geom_point(aes_string(x=xvar,y=yvar,size=sizevar)) 
-  else p <- p + geom_point(aes_string(x=xvar,y=yvar))
-  if(!is.null(caption)) p <- p + labs(caption=paste(runpath,runno,sep=":"))
-#  ggsave(filename=paste(paste(xvar,yvar,sep="vs"),"jpg",sep="."),path=projpath)
+  
+  # Add trendlines
+  if(!is.null(smooth)) {
+    if(smooth=="lm") p <- p + geom_smooth(aes_string(x=xvar,y=yvar),method="lm") 
+    if(smooth=="loess") p <- p + geom_smooth(aes_string(x=xvar,y=yvar),method="loess") 
+  }
+  # Add caption and save
+  if(caption) {
+    p <- p + labs(caption=paste(runpath,runno,sep=":"))
+    ggsave(filename=paste(paste(xvar,yvar,sep="vs"),"jpg",sep="."),path=projpath)
+  }  
   p
 }
 
-# Remove comment symbol for interactive plots
-#library(plotly)
-#ggplotly(gof_plot("PRED","CWRES", sizevar="ID"))
-
-
-p <- grid.arrange(gof_plot("DV","PRED"),gof_plot("PRED","RES"),gof_plot("PRED","CWRES"),
-                  gof_plot("DV","IPRE"),gof_plot("TIME","RES"),gof_plot("TIME","CWRES"),
-                  nrow=2)
-ggsave(plot=p,filename=paste(runno,"gof_plot.jpg",sep="-"),path=projpath)             
+## Generate individual plots
+indiv_plot <- function(data,
+                       minID=NULL,maxID=NULL,
+                       nrow=NULL,ncol=NULL,
+                       xlog=F,ylog=F,
+                       xlab="Time (hr)",ylab="Concentration (ng/mL)",
+                       scales="fixed",index=1,caption=F,...) 
+{ 
+  # If subset of data are to be plotted
+  if(!is.null(minID) &  !is.null(maxID)) dta <- data %>% filter(between(ID,minID,maxID)) else dta <- data
+  
+  p <- ggplot(dta) + 
+    facet_wrap(~ID,labeller=label_both,scales=scales) +
+    geom_point(aes(x=TIME,y=DV)) + 
+    geom_line(aes(x=TIME,y=IPRE,color="red")) + 
+    geom_line(aes(x=TIME,y=PRED,color="blue")) +
+    scale_color_discrete(name="Prediction",labels=c("Individual","Population")) +
+    labs(x=xlab,y=ylab)
+  
+  # Specify number of rows and columns
+  if(!is.null(nrow)) p <- p + facet_wrap(~ID,labeller=label_both,scales=scales,nrow=nrow)  
+  if(!is.null(ncol)) p <- p + facet_wrap(~ID,labeller=label_both,scales=scales,ncol=ncol)
+  if(!is.null(nrow) &  !is.null(ncol)) p <- p + facet_wrap(~ID,labeller=label_both,scales=scales,nrow=nrow,ncol=ncol) 
+  
+  # Linear or log-linear scale
+  if(xlog & !ylog) p <- p + scale_x_log10()
+  if(!xlog & ylog) p <- p + scale_y_log10()
+  if(xlog & ylog) p <- p + scale_x_log10() + scale_y_log10()
+  
+  # Add caption and save
+  if(caption) {
+    p <- p + labs(caption=paste(runpath,runno,sep=":"))
+    ggsave(filename=paste(paste("individual plots",index,sep="_"),"jpg",sep="."),path=projpath)
+  }
+  p
+}         
