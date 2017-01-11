@@ -5,6 +5,9 @@
 #' output: html_document
 #' ---
 #'
+
+#' **Project:**
+#' 
 #' Initialization settings
 rm(list=ls())
 set.seed(12345)
@@ -56,20 +59,24 @@ calc_int(auc.lm,new.doses) %>% mutate_all(round, digits=1)
 
 #' Plot of predicted PK values over proposed dose range using `calc_int`
 ## Cmax values (solid line: prediction, dashed line: 95% CI, shaded area: 90% PI)
-ggplot(data=calc_int(cmax.lm,new.doserange)) +
-  geom_point(data=data,aes(x=DOSE,y=CMAX)) +
-  geom_line(aes(x=DOSE,y=pred.ci)) +
-  geom_line(aes(x=DOSE,y=lwr.ci),linetype="dashed") +
-  geom_line(aes(x=DOSE,y=upr.ci),linetype="dashed") +
-  geom_ribbon(aes(x=DOSE,ymin=lwr.pi,ymax=upr.pi),alpha="0.1",fill="red") +
-  xlab("Dose (mg)") + ylab("Cmax (ng/mL)") + theme_basic()
-if(qc) ggsave(paste(paste(projpath,paste("DOSEvsCMAX",format(Sys.Date(),"%d%b%Y"),sep="_"),sep="/"),"jpg",sep="."))
+cmax.plot <- ggplot(data=calc_int(cmax.lm,new.doserange)) +
+              geom_point(data=data,aes(x=DOSE,y=CMAX)) +
+              geom_line(aes(x=DOSE,y=pred.ci)) +
+              geom_line(aes(x=DOSE,y=lwr.ci),linetype="dashed") +
+              geom_line(aes(x=DOSE,y=upr.ci),linetype="dashed") +
+              geom_ribbon(aes(x=DOSE,ymin=lwr.pi,ymax=upr.pi),alpha="0.1",fill="red") +
+              xlab("Dose (mg)") + ylab("Cmax (ng/mL)") + theme_slide()
+cmax.plot
+
 ## AUC values (solid line: prediction, dashed line: 95% CI, shaded area: 90% PI)
-ggplot(data=calc_int(auc.lm,new.doserange)) +
-  geom_point(data=data,aes(x=DOSE,y=AUC)) +
-  geom_line(aes(x=DOSE,y=pred.ci)) +
-  geom_line(aes(x=DOSE,y=lwr.ci),linetype="dashed") +
-  geom_line(aes(x=DOSE,y=upr.ci),linetype="dashed") +
-  geom_ribbon(aes(x=DOSE,ymin=lwr.pi,ymax=upr.pi),alpha="0.1",fill="red") +
-  xlab("Dose (mg)") + ylab("AUC (ng*hr/mL)") + theme_basic()
-if(qc) ggsave(paste(paste(projpath,paste("DOSEvsAUC",format(Sys.Date(),"%d%b%Y"),sep="_"),sep="/"),"jpg",sep="."))
+auc.plot <- ggplot(data=calc_int(auc.lm,new.doserange)) +
+              geom_point(data=data,aes(x=DOSE,y=AUC)) +
+              geom_line(aes(x=DOSE,y=pred.ci)) +
+              geom_line(aes(x=DOSE,y=lwr.ci),linetype="dashed") +
+              geom_line(aes(x=DOSE,y=upr.ci),linetype="dashed") +
+              geom_ribbon(aes(x=DOSE,ymin=lwr.pi,ymax=upr.pi),alpha="0.1",fill="red") +
+              xlab("Dose (mg)") + ylab("AUC (ng*hr/mL)") + theme_slide()
+auc.plot
+#' If plots need to be exported, change qc to TRUE
+if(qc) ggsave(plot=cmax.plot,paste(paste(projpath,paste("DOSEvsCMAX",format(Sys.Date(),"%d%b%Y"),sep="_"),sep="/"),"jpg",sep="."))
+if(qc) ggsave(plot=auc.plot,paste(paste(projpath,paste("DOSEvsAUC",format(Sys.Date(),"%d%b%Y"),sep="_"),sep="/"),"jpg",sep="."))
